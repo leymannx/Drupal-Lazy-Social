@@ -1,0 +1,5 @@
+name = Lazy Social
+description = Implements lazy loaded social network buttons (Like, Tweet, +1) with counters.
+core = 7.x
+package = Custom
+configure = admin/config/system/lazy_social

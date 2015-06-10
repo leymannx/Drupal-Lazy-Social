@@ -1,0 +1,13 @@
+/* Welcome to Compass.
+ * `compass watch` will generate lazy_social.css inside module's css directory
+ * css then is added via drupal_add_css() inside lazy_social.module */
+/* line 5, lazy_social.scss */
+#lazy-social-buttons {
+  line-height: 1;
+}
+/* line 7, lazy_social.scss */
+#lazy-social-buttons .lazy-social-button {
+  display: inline-block;
+  vertical-align: top;
+  margin-right: 25px;
+}

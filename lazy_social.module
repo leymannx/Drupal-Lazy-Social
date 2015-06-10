@@ -1,0 +1,185 @@
+<?php
+/**
+ * @file
+ * Adds a settings page and form
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function lazy_social_menu() {
+
+	$items['admin/config/services/lazy_social'] = array(
+		'title' 						=> t('Lazy Social'),
+		'description' 			=> 'Select social networks and node types to which you want to attach social buttons with counters',
+		'page callback' 		=> 'drupal_get_form',
+		'page arguments'   	=> array('lazy_social_settings_form'),
+		'access arguments'	=> array('administer site configuration'),
+	);
+	return $items;
+}
+
+/**
+ * Implements hook_form().
+ */
+function lazy_social_settings_form() {
+
+	module_load_include('inc', 'lazy_social', 'langcodes');
+	$form['lazy_social_buttons'] = array(
+		'#type'          => 'checkboxes',
+		'#title'         => t('Button types'),
+		'#description'   => t('Display these buttons.'),
+		'#default_value' => variable_get('lazy_social_buttons', array()),
+		'#options'       => array('like' => 'Facebook Like', 'tweet' => 'Twitter Tweet', 'plusone' => 'Google +1')
+	);
+	$form['lazy_social_nodetypes'] = array(
+		'#type'          => 'checkboxes',
+		'#title'         => t('Node types'),
+		'#description'   => t('Display buttons for these node types.'),
+		'#default_value' => variable_get('lazy_social_nodetypes', array()),
+		'#options'       => node_type_get_names()
+	);
+	$form['lazy_social_viewmodes'] = array(
+		'#type'          => 'checkboxes',
+		'#title'         => t('View modes'),
+		'#description'   => t('Display buttons for these view modes.'),
+		'#default_value' => variable_get('lazy_social_viewmodes', array()),
+		'#options'       => _view_modes()
+	);
+	$form['lazy_social_langcode_facebook'] = array(
+		'#type'          => 'select',
+		'#title'         => t('Optional: Facebook Language'),
+		'#description'   => t('Please choose a language for Facebook\'s button.<br />Will fall back to English if no language is chosen.'),
+		'#default_value' => variable_get('lazy_social_langcode_facebook', array()),
+		'#options'       => lazy_social_langcode_options('facebook')
+	);
+	$form['lazy_social_langcode_twitter'] = array(
+		'#type'          => 'select',
+		'#title'         => t('Optional: Twitter Language'),
+		'#description'   => t('Please choose a language for Twitter\'s button.<br />Will fall back to English if no language is chosen.'),
+		'#default_value' => variable_get('lazy_social_langcode_twitter', array()),
+		'#options'       => lazy_social_langcode_options('twitter')
+	);
+	$form['lazy_social_langcode_google'] = array(
+		'#type'          => 'select',
+		'#title'         => t('Optional: Google Language'),
+		'#description'   => t('Please choose a language for Google\'s button.<br />Will fall back to English if no language is chosen.'),
+		'#default_value' => variable_get('lazy_social_langcode_google', array()),
+		'#options'       => lazy_social_langcode_options('google')
+	);
+	$form['lazy_social_facebook_appid'] = array(
+		'#type'          => 'textfield',
+		'#title'         => t('Optional: Facebook AppID'),
+		'#description'   => t('Enter a Facebook AppID if you have one. It\'s not necessary to make the button work.<br />You only need it for tracking and customised button actions within your Facebook page.'),
+		'#default_value' => variable_get('lazy_social_facebook_appid', ''),
+	);
+	$form['lazy_social_twitter_via'] = array(
+		'#type'          => 'textfield',
+		'#title'         => t('Optional: Twitter Username (without @-symbol)'),
+		'#description'   => t('Appears appended to Tweet text as "via @username". It\'s not necessary to make the button work.<br />You only need it for referencing the tweets to you.'),
+		'#default_value' => variable_get('lazy_social_twitter_via', ''),
+	);
+	$form['lazy_social_twitter_related'] = array(
+		'#type'          => 'textfield',
+		'#title'         => t('Optional: Twitter Related (without @-symbols)'),
+		'#description'   => t('A comma-separated list (with no spaces) of Twitter usernames related to the content of the shared URI.<br /> Not necessary to make the button work. An included Twitter account may appear in a list of recommended accounts to follow.'),
+		'#default_value' => variable_get('lazy_social_twitter_related', ''),
+	);
+	return system_settings_form($form);
+}
+
+/**
+ * Implements hook_node_view().
+ */
+function lazy_social_node_view($node, $view_mode) {
+
+	// first look for matching node types and view modes
+	$node_types = variable_get('lazy_social_nodetypes', array());
+	$view_modes = variable_get('lazy_social_viewmodes', array());
+
+	if (in_array($node->type, $node_types, TRUE) && in_array($view_mode, $view_modes, TRUE)) {
+		// and create the new region
+		$node->content['lazy_social'] = array(
+			'#prefix' => '<div id="lazy-social-buttons">',
+			'#suffix' => '</div>'
+		);
+
+		// then look for chosen button types and prepare buttons
+		$button_types = variable_get('lazy_social_buttons', array());
+		$buttons = _lazy_social_buttons($node);
+
+		foreach ($button_types as $key => $value) {
+			// and finally add them
+			if($key === $value) {
+				$node->content['lazy_social'][$key] = array(
+					'#markup' => $buttons[$key],
+					'#prefix' => '<div class="' . $key . ' lazy-social-button">',
+					'#suffix' => '</div>'
+				);
+			}
+		}
+	}
+	// $default_theme = variable_get('theme_default', NULL);
+	// $regions = system_region_list($default_theme, REGIONS_ALL);
+	// Nah! That needs to be done on the page scope. If that really is a usefull feature.
+}
+
+/**
+ * Implements hook_page_build().
+ */
+function lazy_social_page_build(&$page) {
+
+	$google_lang 		= variable_get('lazy_social_langcode_google', 'en-US');
+  $facebook_lang 		= variable_get('lazy_social_langcode_facebook', 'en_US');
+  $facebook_appid 	= variable_get('lazy_social_facebook_appid', '');
+  $facebook_appid 	= !empty($facebook_appid) ? '&appId=' . $facebook_appid : '';
+
+  // add Waypoints library for the necessary scroll event magic
+  drupal_add_js(drupal_get_path('module', 'lazy_social').'/waypoints.min.js');
+
+  // add social media scripts and logic
+  drupal_add_js(drupal_get_path('module', 'lazy_social').'/lazy_social.js');
+
+  // pass prepared FB and G+ variables from PHP to JS
+  drupal_add_js(array('lazy_social' => array('facebook' => array('locale' => $facebook_lang, 'appID' => $facebook_appid))), 'setting');
+  drupal_add_js(array('lazy_social' => array('googleplus' => array('locale' => $google_lang))), 'setting');
+  
+  drupal_add_css(drupal_get_path('module', 'lazy_social') . '/css/lazy_social.css');
+}
+
+/**
+ * Helper function to create buttons markup
+ * @param  object $node the node object
+ * @return array $buttons array to build markup on node view
+ */
+function _lazy_social_buttons($node) {
+
+	$url = url(drupal_get_path_alias('node/' . $node->nid), array('absolute' => true));
+
+	$twitter_lang 		= variable_get('lazy_social_langcode_twitter', 'en');
+	$twitter_lang 		= ($twitter_lang != 'en') ? ' data-lang="' . $twitter_lang . '"' : '';
+	$twitter_via 			= variable_get('lazy_social_twitter_via', '');
+	$twitter_via 			= !empty($twitter_via) ? ' data-via="' . $twitter_via . '"' : '';
+	$twitter_related 	= variable_get('lazy_social_twitter_related', '');
+	$twitter_related  = !empty($twitter_related) ? ' data-related="' . $twitter_related . '"' : '';
+
+	$buttons = array(
+		'like'		=> '<div class="fb-like" data-href="' . $url . '" data-layout="button_count" data-action="like" data-show-faces="false" data-share="false"></div>',
+		'tweet' 	=> '<a class="twitter-share-button" href="https://twitter.com/share"' . $twitter_lang . ' data-url="' . $url . '" data-text="' . $node->title . '"' . $twitter_via . $twitter_related . '></a>',
+		'plusone'	=> '<g:plusone callback="plusone_vote" size="medium" href="' . $url . '"></g:plusone>'
+	);
+	return $buttons;
+}
+
+/**
+ * Helper function to build select list options for view modes
+ * @return array $view_modes array of all available view modes
+ */
+function _view_modes() {
+	$entity_info = entity_get_info('node');
+	$view_modes = array();
+	foreach ($entity_info['view modes'] as $machine_name => $property) {
+		$view_modes[$machine_name] = $property['label'];
+	}
+	return $view_modes;
+}

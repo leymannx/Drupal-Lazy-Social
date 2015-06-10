@@ -1,0 +1,20 @@
+<?php
+/**
+ * @file
+ * Uninstall file for Lazy Social
+ */
+
+/**
+ * Implements hook_uninstall().
+ */
+function lazy_social_uninstall() {
+  variable_del('lazy_social_buttons');
+  variable_del('lazy_social_nodetypes');
+  variable_del('lazy_social_viewmodes');
+  variable_del('lazy_social_langcode_facebook');
+  variable_del('lazy_social_langcode_twitter');
+  variable_del('lazy_social_langcode_google');
+  variable_del('lazy_social_facebook_appid');
+  variable_del('lazy_social_twitter_via');
+  variable_del('lazy_social_twitter_related');
+}
