@@ -13,6 +13,7 @@ Go to admin/config/services/lazy_social and select social networks, node types a
 ### TO DO
 * build tabs on settings page
 * validate optional values
+* add option to choose button types (without counter, big, small, ...)
 
 ### Please help!
 Feature requests or pull requests are much appreciated!
